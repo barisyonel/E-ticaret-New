@@ -14,6 +14,7 @@ import { sql } from '@/lib/db';
 import { sendOrderConfirmationEmail, sendOrderStatusUpdateEmail } from '@/lib/email';
 import { createNotification } from './notificationActions';
 import { CouponRepository } from '@/lib/repositories/CouponRepository';
+import { getOrdersForUser } from '@/lib/services/userOrders';
 
 // Validation schema
 const shippingAddressSchema = z.object({
@@ -436,22 +437,11 @@ export async function getUserOrders(isForAdmin: boolean = false, userIdOverride?
       };
     }
 
-    const orders = await OrderRepository.findByUserId(targetUserId);
+    const ordersWithItems = await getOrdersForUser(targetUserId);
     
-    // Fetch items for each order
-    const ordersWithItems = await Promise.all(
-      orders.map(async (order) => {
-        const orderWithItems = await OrderRepository.findById(order.id);
-        return orderWithItems ? {
-          ...orderWithItems,
-          shippingAddress: OrderRepository.parseShippingAddress(orderWithItems.shippingAddressJson),
-        } : null;
-      })
-    );
-
     return {
       success: true,
-      data: ordersWithItems.filter(order => order !== null),
+      data: ordersWithItems,
     };
   } catch (error) {
     console.error('Get user orders error:', error);
